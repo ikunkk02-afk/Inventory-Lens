@@ -32,6 +32,11 @@ public final class ContainerSnapshotCache {
 
 	@Nullable
 	public ContainerSnapshotRequestPayload request(BlockPos hitPosition, long nowMs) {
+		return request(hitPosition, nowMs, false);
+	}
+
+	@Nullable
+	public ContainerSnapshotRequestPayload request(BlockPos hitPosition, long nowMs, boolean previewFocus) {
 		expire(nowMs);
 		if (target == null || !target.members().contains(hitPosition)
 				|| (lastRequestMs != Long.MIN_VALUE && nowMs - lastRequestMs < REFRESH_MS)) {
@@ -40,7 +45,7 @@ public final class ContainerSnapshotCache {
 		lastRequestMs = nowMs;
 		long requestId = ++nextRequestId;
 		pending.put(requestId, nowMs);
-		return new ContainerSnapshotRequestPayload(target.identity().dimension(), hitPosition, requestId);
+		return new ContainerSnapshotRequestPayload(target.identity().dimension(), hitPosition, requestId, previewFocus);
 	}
 
 	public void receive(ContainerSnapshotPayload response, long nowMs) {
@@ -50,6 +55,8 @@ public final class ContainerSnapshotCache {
 			return;
 		}
 		if (response.snapshot() != null && !target.equals(response.snapshot().container())) {
+			// The block changed type while a request was in flight; do not keep an obsolete preview.
+			snapshot = null;
 			return;
 		}
 		lastAppliedId = response.requestId();
@@ -67,6 +74,7 @@ public final class ContainerSnapshotCache {
 	public long updatedMs() {
 		return updatedMs;
 	}
+
 
 	private void expire(long nowMs) {
 		pending.values().removeIf(sentAt -> nowMs - sentAt >= EXPIRY_MS);

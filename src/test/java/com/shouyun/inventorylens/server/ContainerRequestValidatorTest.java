@@ -31,6 +31,20 @@ class ContainerRequestValidatorTest {
 		assertEquals(0, world.inventoryLookups);
 	}
 
+	@Test void focusedPreviewStillRequiresRangeAndLineOfSight() {
+		TestWorld world = new TestWorld();
+		BlockPos chest = new BlockPos(0, 64, 4);
+		world.states.put(chest, Blocks.CHEST.defaultBlockState());
+		var request = new ContainerSnapshotRequestPayload(Level.OVERWORLD, chest, 1, true);
+		assertNotNull(ContainerRequestValidator.validate(request, Level.OVERWORLD, world, world::loaded,
+				new Vec3(0.5, 64.5, 0), new Vec3(0, 0, -1), CollisionContext.empty()));
+		world.states.put(new BlockPos(0, 64, 2), Blocks.STONE.defaultBlockState());
+		assertNull(ContainerRequestValidator.validate(request, Level.OVERWORLD, world, world::loaded,
+				new Vec3(0.5, 64.5, 0), new Vec3(0, 0, -1), CollisionContext.empty()));
+		assertNull(ContainerRequestValidator.validate(request, Level.OVERWORLD, world, world::loaded,
+				new Vec3(0.5, 64.5, -10), new Vec3(0, 0, -1), CollisionContext.empty()));
+	}
+
 	@Test
 	void rejectsWrongDimensionWithoutWorldAccess() {
 		TestWorld world = new TestWorld();

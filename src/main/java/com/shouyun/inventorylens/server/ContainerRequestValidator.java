@@ -25,6 +25,19 @@ public final class ContainerRequestValidator {
 		if (!dimension.equals(request.dimension())) {
 			return null;
 		}
+		if (request.previewFocus()) {
+			if (!loaded.test(request.position())) return null;
+			ResolvedContainer focused = ContainerResolverRegistry.resolve(dimension, blocks, loaded, request.position());
+			if (focused == null) return null;
+			for (BlockPos member : focused.members()) {
+				Vec3 center = Vec3.atCenterOf(member);
+				Vec3 direction = center.subtract(eye);
+				if (direction.lengthSqr() > ContainerSight.RANGE * ContainerSight.RANGE) continue;
+				BlockHitResult visible = ContainerSight.pick(blocks, loaded, eye, direction.normalize(), collisionContext);
+				if (visible != null && focused.members().contains(visible.getBlockPos())) return focused;
+			}
+			return null;
+		}
 		BlockHitResult hit = ContainerSight.pick(blocks, loaded, eye, look, collisionContext);
 		if (hit == null) {
 			return null;

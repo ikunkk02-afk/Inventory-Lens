@@ -4,11 +4,13 @@ import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.shouyun.inventorylens.container.ContainerSnapshot;
+import com.shouyun.inventorylens.client.preview.NestedPreviewManager;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.Util;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL13;
@@ -19,6 +21,7 @@ public final class WorldContainerRenderer implements AutoCloseable {
 	private static final float WORLD_PIXEL_SIZE = 0.005F;
 	private final WorldContainerGuiRenderer grid = new WorldContainerGuiRenderer();
 	private final WorldContainerPlacement placement = new WorldContainerPlacement();
+	private final NestedPreviewManager previews = new NestedPreviewManager();
 	private WorldItemRenderer items;
 
 	public void render(Minecraft minecraft, PoseStack pose, Camera camera, ContainerSnapshot snapshot, BlockHitResult hit) {
@@ -28,6 +31,7 @@ public final class WorldContainerRenderer implements AutoCloseable {
 				gui.width() * WORLD_PIXEL_SIZE,
 				gui.height() * WORLD_PIXEL_SIZE);
 		if (panel == null) {
+			previews.reset();
 			return;
 		}
 		if (items == null) {
@@ -62,13 +66,23 @@ public final class WorldContainerRenderer implements AutoCloseable {
 			RenderSystem.enableDepthTest();
 			RenderSystem.depthFunc(GL11.GL_LEQUAL);
 			RenderSystem.depthMask(true);
-			Vec3 anchor = panel.anchor();
-			WorldUiTransform.applyAt(pose, camera.getPosition(), panel.rotation(), anchor.x, anchor.y, anchor.z);
-			float scale = WORLD_PIXEL_SIZE * panel.scale() / WorldUiTransform.PIXEL_SCALE;
-			pose.scale(scale, scale, scale);
-			pose.translate(-gui.width() * 0.5,
-					-gui.height() * 0.5, 0);
-			grid.render(minecraft, pose, items, snapshot, gui);
+			Vec3 look = new Vec3(camera.getLookVector().x(), camera.getLookVector().y(), camera.getLookVector().z());
+			double pixelScale = WORLD_PIXEL_SIZE * panel.scale();
+			var panels = previews.update(snapshot, gui, panel.anchor(), panel.rotation(), pixelScale,
+					camera.getPosition(), look, Util.getMillis());
+			for (var child : panels) {
+				pose.pushPose();
+				try {
+					Vec3 anchor = child.center();
+					WorldUiTransform.applyAt(pose, camera.getPosition(), panel.rotation(), anchor.x, anchor.y, anchor.z);
+					float scale = WORLD_PIXEL_SIZE * panel.scale() / WorldUiTransform.PIXEL_SCALE;
+					pose.scale(scale, scale, scale);
+					pose.translate(-child.gui().width() * 0.5, -child.gui().height() * 0.5, 0);
+					grid.render(minecraft, pose, items, child.items(), child.title(),
+							snapshot.container().identity().position().hashCode() + child.level() * 31,
+							child.gui(), child.hoveredSlot());
+				} finally { pose.popPose(); }
+			}
         } finally {
             try {
                 items.flush();
@@ -100,7 +114,10 @@ public final class WorldContainerRenderer implements AutoCloseable {
 
 	public void resetPlacement() {
 		placement.reset();
+		previews.reset();
 	}
+
+	public boolean previewFocused() { return previews.retainsTarget(); }
 
 	@Override
 	public void close() {

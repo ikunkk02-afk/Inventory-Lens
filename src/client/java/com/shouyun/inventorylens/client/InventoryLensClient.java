@@ -28,13 +28,14 @@ public class InventoryLensClient implements ClientModInitializer {
 		WorldContainerRenderer containerRenderer = new WorldContainerRenderer();
 		ClientPlayNetworking.registerGlobalReceiver(ContainerSnapshotPayload.TYPE, (payload, context) -> {
 			// Recheck current world/target before accepting a response, even between render frames.
-			containerTracker.update(context.client(), 1, ClientPlayNetworking.canSend(ContainerSnapshotRequestPayload.TYPE));
+			containerTracker.update(context.client(), 1, ClientPlayNetworking.canSend(ContainerSnapshotRequestPayload.TYPE), containerRenderer.previewFocused());
 			containerCache.receive(payload, Util.getMillis());
 		});
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-			containerTracker.update(client, 1, ClientPlayNetworking.canSend(ContainerSnapshotRequestPayload.TYPE));
+			containerTracker.update(client, 1, ClientPlayNetworking.canSend(ContainerSnapshotRequestPayload.TYPE), containerRenderer.previewFocused());
 			if (containerTracker.hitPosition() != null) {
-				ContainerSnapshotRequestPayload request = containerCache.request(containerTracker.hitPosition(), Util.getMillis());
+				ContainerSnapshotRequestPayload request = containerCache.request(containerTracker.hitPosition(),
+						Util.getMillis(), containerRenderer.previewFocused());
 				if (request != null) {
 					ClientPlayNetworking.send(request);
 				}
@@ -51,7 +52,7 @@ public class InventoryLensClient implements ClientModInitializer {
 				renderer.resetPlacement();
 			}
 			containerTracker.update(minecraft, context.camera().getPartialTickTime(),
-					ClientPlayNetworking.canSend(ContainerSnapshotRequestPayload.TYPE));
+					ClientPlayNetworking.canSend(ContainerSnapshotRequestPayload.TYPE), containerRenderer.previewFocused());
 			ContainerSnapshot snapshot = containerCache.snapshot(Util.getMillis());
 			if (snapshot != null && context.matrixStack() != null && containerTracker.hitResult() != null) {
 				containerRenderer.render(minecraft, context.matrixStack(), context.camera(), snapshot, containerTracker.hitResult());

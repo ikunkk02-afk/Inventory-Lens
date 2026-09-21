@@ -23,15 +23,19 @@ public final class ContainerTargetTracker {
 	}
 
 	public void update(Minecraft minecraft, float partialTick, boolean channelAvailable) {
+		update(minecraft, partialTick, channelAvailable, false);
+	}
+
+	public void update(Minecraft minecraft, float partialTick, boolean channelAvailable, boolean retainPreview) {
 		if (world != minecraft.level) {
 			clear();
 			world = minecraft.level;
 		}
-		hitPosition = null;
-		hitResult = null;
 		if (!channelAvailable || world == null || minecraft.player == null || !minecraft.player.isAlive()
 				|| minecraft.getCameraEntity() != minecraft.player || minecraft.screen != null || minecraft.options.hideGui) {
 			cache.setTarget(null);
+			hitPosition = null;
+			hitResult = null;
 			return;
 		}
 		Vec3 eye = minecraft.player.getEyePosition(partialTick);
@@ -39,11 +43,19 @@ public final class ContainerTargetTracker {
 				minecraft.player.getViewVector(partialTick), CollisionContext.of(minecraft.player));
 		if (hit == null || (minecraft.hitResult instanceof EntityHitResult entityHit
 				&& eye.distanceToSqr(entityHit.getLocation()) <= eye.distanceToSqr(hit.getLocation()))) {
+			if (retainPreview && hitResult != null) return;
 			cache.setTarget(null);
+			hitPosition = null;
+			hitResult = null;
 			return;
 		}
 		ResolvedContainer target = ContainerResolverRegistry.resolve(world, hit.getBlockPos());
+		if (target == null && retainPreview && hitResult != null) return;
+		if (target != null && retainPreview && hitResult != null && hitPosition != null
+				&& !target.members().contains(hitPosition)) return;
 		cache.setTarget(target);
+		hitPosition = null;
+		hitResult = null;
 		if (target != null) {
 			hitPosition = hit.getBlockPos().immutable();
 			hitResult = hit;

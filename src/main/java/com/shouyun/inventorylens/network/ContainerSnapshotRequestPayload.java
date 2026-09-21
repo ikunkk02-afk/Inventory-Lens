@@ -9,15 +9,18 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
-public record ContainerSnapshotRequestPayload(ResourceKey<Level> dimension, BlockPos position, long requestId)
+public record ContainerSnapshotRequestPayload(ResourceKey<Level> dimension, BlockPos position, long requestId, boolean previewFocus)
 		implements CustomPacketPayload {
-	public static final Type<ContainerSnapshotRequestPayload> TYPE = new Type<>(InventoryLens.id("container_request_v2"));
+	public ContainerSnapshotRequestPayload(ResourceKey<Level> dimension, BlockPos position, long requestId) {
+		this(dimension, position, requestId, false);
+	}
+	public static final Type<ContainerSnapshotRequestPayload> TYPE = new Type<>(InventoryLens.id("container_request_v3"));
 	public static final StreamCodec<RegistryFriendlyByteBuf, ContainerSnapshotRequestPayload> STREAM_CODEC =
 			new StreamCodec<>() {
 				@Override
 				public ContainerSnapshotRequestPayload decode(RegistryFriendlyByteBuf buffer) {
 					return new ContainerSnapshotRequestPayload(ResourceKey.create(Registries.DIMENSION,
-							buffer.readResourceLocation()), buffer.readBlockPos(), buffer.readVarLong());
+							buffer.readResourceLocation()), buffer.readBlockPos(), buffer.readVarLong(), buffer.readBoolean());
 				}
 
 				@Override
@@ -25,6 +28,7 @@ public record ContainerSnapshotRequestPayload(ResourceKey<Level> dimension, Bloc
 					buffer.writeResourceLocation(payload.dimension.location());
 					buffer.writeBlockPos(payload.position);
 					buffer.writeVarLong(payload.requestId);
+					buffer.writeBoolean(payload.previewFocus);
 				}
 			};
 

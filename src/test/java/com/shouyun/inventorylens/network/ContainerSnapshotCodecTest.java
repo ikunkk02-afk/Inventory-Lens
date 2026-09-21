@@ -31,6 +31,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
@@ -109,6 +110,34 @@ class ContainerSnapshotCodecTest {
 		} finally {
 			buffer.release();
 		}
+	}
+
+	@Test void nestedShulkerContentsSurviveTheActualSnapshotCodec() {
+		ItemStack sword = new ItemStack(Items.DIAMOND_SWORD);
+		sword.setDamageValue(123);
+		sword.set(DataComponents.CUSTOM_NAME, Component.literal("Inside"));
+		List<ItemStack> innerSlots = new ArrayList<>(Collections.nCopies(27, ItemStack.EMPTY));
+		innerSlots.set(12, sword);
+		ItemStack inner = new ItemStack(Items.RED_SHULKER_BOX);
+		inner.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(innerSlots));
+		List<ItemStack> outerSlots = new ArrayList<>(Collections.nCopies(27, ItemStack.EMPTY));
+		outerSlots.set(4, inner);
+		ItemStack outer = new ItemStack(Items.PURPLE_SHULKER_BOX);
+		outer.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(outerSlots));
+		List<ItemStack> chest = new ArrayList<>(Collections.nCopies(27, ItemStack.EMPTY));
+		chest.set(0, outer);
+		var target = new ResolvedContainer(new ContainerIdentity(Level.OVERWORLD, BlockPos.ZERO),
+				ContainerType.CHEST, List.of(BlockPos.ZERO), Direction.NORTH);
+		var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
+		try {
+			ContainerSnapshotPayload.STREAM_CODEC.encode(buffer, new ContainerSnapshotPayload(1, Status.OK,
+					new ContainerSnapshot(target, chest)));
+			ItemStack decoded = ContainerSnapshotPayload.STREAM_CODEC.decode(buffer).snapshot().items().get(0);
+			assertTrue(ItemStack.matches(outer, decoded));
+			var levelOne = com.shouyun.inventorylens.container.ShulkerNestingInspector.getContents(decoded);
+			var levelTwo = com.shouyun.inventorylens.container.ShulkerNestingInspector.getContents(levelOne.get(4));
+			assertTrue(ItemStack.matches(sword, levelTwo.get(12)));
+		} finally { buffer.release(); }
 	}
 
 	@Test
