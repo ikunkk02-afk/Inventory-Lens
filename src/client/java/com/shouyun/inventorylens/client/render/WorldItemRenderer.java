@@ -45,6 +45,10 @@ public final class WorldItemRenderer implements AutoCloseable {
 			RenderType.entityGlint(), new MainTargetLayer(RenderType.entityGlint()));
 	private final MultiBufferSource.BufferSource buffers;
 	private final MultiBufferSource itemBuffers;
+	private float alpha = 1;
+
+	public void alpha(float value) { alpha = Math.clamp(value, 0, 1); }
+	private int faded(int color) { return (Math.round((color >>> 24) * alpha) << 24) | (color & 0x00FFFFFF); }
 
 	public WorldItemRenderer() {
 		// Foil consumers are requested before the base model. Separate persistent buffers keep them
@@ -100,7 +104,7 @@ public final class WorldItemRenderer implements AutoCloseable {
 			try {
 				pose.translate(0, 0, DECORATION_Z + 0.02F);
 				minecraft.font.drawInBatch(count, x + 17 - minecraft.font.width(count), y + 9,
-						0xFFFFFFFF, true, pose.last().pose(), buffers, Font.DisplayMode.NORMAL,
+						faded(0xFFFFFFFF), true, pose.last().pose(), buffers, Font.DisplayMode.NORMAL,
 						0, LightTexture.FULL_BRIGHT);
 				flush();
 			} finally {
@@ -113,23 +117,23 @@ public final class WorldItemRenderer implements AutoCloseable {
 	public void fill(PoseStack pose, float left, float top, float right, float bottom, float z, int color) {
 		Matrix4f matrix = pose.last().pose();
 		VertexConsumer vertices = buffers.getBuffer(PANEL_QUADS);
-		vertices.addVertex(matrix, left, top, z).setColor(color);
-		vertices.addVertex(matrix, left, bottom, z).setColor(color);
-		vertices.addVertex(matrix, right, bottom, z).setColor(color);
-		vertices.addVertex(matrix, right, top, z).setColor(color);
+		vertices.addVertex(matrix, left, top, z).setColor(faded(color));
+		vertices.addVertex(matrix, left, bottom, z).setColor(faded(color));
+		vertices.addVertex(matrix, right, bottom, z).setColor(faded(color));
+		vertices.addVertex(matrix, right, top, z).setColor(faded(color));
 	}
 
 	/** Vanilla inventory placeholder sprite, with world depth and no screen-space GUI calls. */
 	public void sprite(PoseStack pose, TextureAtlasSprite sprite, int x, int y, float z) {
 		Matrix4f matrix = pose.last().pose();
 		VertexConsumer vertices = buffers.getBuffer(RenderType.text(sprite.atlasLocation()));
-		vertices.addVertex(matrix, x, y, z).setColor(0xFFFFFFFF)
+		vertices.addVertex(matrix, x, y, z).setColor(faded(0xFFFFFFFF))
 				.setUv(sprite.getU0(), sprite.getV0()).setLight(LightTexture.FULL_BRIGHT);
-		vertices.addVertex(matrix, x, y + 16, z).setColor(0xFFFFFFFF)
+		vertices.addVertex(matrix, x, y + 16, z).setColor(faded(0xFFFFFFFF))
 				.setUv(sprite.getU0(), sprite.getV1()).setLight(LightTexture.FULL_BRIGHT);
-		vertices.addVertex(matrix, x + 16, y + 16, z).setColor(0xFFFFFFFF)
+		vertices.addVertex(matrix, x + 16, y + 16, z).setColor(faded(0xFFFFFFFF))
 				.setUv(sprite.getU1(), sprite.getV1()).setLight(LightTexture.FULL_BRIGHT);
-		vertices.addVertex(matrix, x + 16, y, z).setColor(0xFFFFFFFF)
+		vertices.addVertex(matrix, x + 16, y, z).setColor(faded(0xFFFFFFFF))
 				.setUv(sprite.getU1(), sprite.getV0()).setLight(LightTexture.FULL_BRIGHT);
 	}
 
@@ -142,13 +146,13 @@ public final class WorldItemRenderer implements AutoCloseable {
 		float v0 = (float) v / textureHeight;
 		float u1 = (float) (u + width) / textureWidth;
 		float v1 = (float) (v + height) / textureHeight;
-		vertices.addVertex(matrix, x, y, z).setColor(0xFFFFFFFF)
+		vertices.addVertex(matrix, x, y, z).setColor(faded(0xFFFFFFFF))
 				.setUv(u0, v0).setLight(LightTexture.FULL_BRIGHT);
-		vertices.addVertex(matrix, x, y + height, z).setColor(0xFFFFFFFF)
+		vertices.addVertex(matrix, x, y + height, z).setColor(faded(0xFFFFFFFF))
 				.setUv(u0, v1).setLight(LightTexture.FULL_BRIGHT);
-		vertices.addVertex(matrix, x + width, y + height, z).setColor(0xFFFFFFFF)
+		vertices.addVertex(matrix, x + width, y + height, z).setColor(faded(0xFFFFFFFF))
 				.setUv(u1, v1).setLight(LightTexture.FULL_BRIGHT);
-		vertices.addVertex(matrix, x + width, y, z).setColor(0xFFFFFFFF)
+		vertices.addVertex(matrix, x + width, y, z).setColor(faded(0xFFFFFFFF))
 				.setUv(u1, v0).setLight(LightTexture.FULL_BRIGHT);
 	}
 
@@ -165,17 +169,17 @@ public final class WorldItemRenderer implements AutoCloseable {
         Matrix4f matrix = pose.last().pose();
         VertexConsumer vertices = buffers.getBuffer(RenderType.text(sprite.atlasLocation()));
         float left = sprite.getU(u0), right = sprite.getU(u1), top = sprite.getV(v0), bottom = sprite.getV(v1);
-        vertices.addVertex(matrix, x, y, z).setColor(-1).setUv(left, top).setLight(LightTexture.FULL_BRIGHT);
-        vertices.addVertex(matrix, x, y + height, z).setColor(-1).setUv(left, bottom).setLight(LightTexture.FULL_BRIGHT);
-        vertices.addVertex(matrix, x + width, y + height, z).setColor(-1).setUv(right, bottom).setLight(LightTexture.FULL_BRIGHT);
-        vertices.addVertex(matrix, x + width, y, z).setColor(-1).setUv(right, top).setLight(LightTexture.FULL_BRIGHT);
+		vertices.addVertex(matrix, x, y, z).setColor(faded(-1)).setUv(left, top).setLight(LightTexture.FULL_BRIGHT);
+		vertices.addVertex(matrix, x, y + height, z).setColor(faded(-1)).setUv(left, bottom).setLight(LightTexture.FULL_BRIGHT);
+		vertices.addVertex(matrix, x + width, y + height, z).setColor(faded(-1)).setUv(right, bottom).setLight(LightTexture.FULL_BRIGHT);
+		vertices.addVertex(matrix, x + width, y, z).setColor(faded(-1)).setUv(right, top).setLight(LightTexture.FULL_BRIGHT);
     }
 
 	public void label(Minecraft minecraft, PoseStack pose, Component text, int x, int y, int color) {
 		pose.pushPose();
 		try {
 			pose.translate(0, 0, 0.05F);
-			minecraft.font.drawInBatch(text, x, y, color, false, pose.last().pose(), buffers,
+		minecraft.font.drawInBatch(text, x, y, faded(color), false, pose.last().pose(), buffers,
 					Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
 			flush();
 		} finally {

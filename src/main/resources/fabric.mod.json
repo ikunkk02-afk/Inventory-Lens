@@ -21,6 +21,9 @@
 		"client": [
 			"com.shouyun.inventorylens.client.InventoryLensClient"
 		],
+		"modmenu": [
+			"com.shouyun.inventorylens.client.config.ModMenuIntegration"
+		],
 		"fabric-datagen": [
 			"com.shouyun.inventorylens.client.InventoryLensDataGenerator"
 		]

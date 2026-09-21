@@ -4,6 +4,8 @@ import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.shouyun.inventorylens.client.target.EquipmentTargetTracker;
+import com.shouyun.inventorylens.client.animation.WorldUiAnimator;
+import com.shouyun.inventorylens.client.config.ConfigManager;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -37,30 +39,35 @@ public final class WorldEquipmentRenderer implements AutoCloseable {
 	private final WorldPanelPlacement placement = new WorldPanelPlacement();
 	private int placementTargetId = Integer.MIN_VALUE;
 	private int panelSide = 1;
+	private boolean hasPlacement;
 
 	public void render(Minecraft minecraft, PoseStack pose, Camera camera, float partialTick,
 			EquipmentTargetTracker equipment) {
-		LivingEntity target = equipment.target();
-		if (target == null || equipment.size() == 0) {
-			resetPlacement();
-			return;
-		}
+		if (equipment.target() != null) render(minecraft, pose, camera, partialTick, equipment.target(),
+				new WorldUiAnimator.Visual(1, 1, 0), false);
+	}
+
+	public void render(Minecraft minecraft, PoseStack pose, Camera camera, float partialTick,
+			LivingEntity target, WorldUiAnimator.Visual visual, boolean exiting) {
+		if (visual.alpha() <= 0) return;
 		if (target.getId() != placementTargetId) {
 			resetPlacement();
 			placementTargetId = target.getId();
 		}
-		if (minecraft.hitResult instanceof EntityHitResult hit && hit.getEntity() == target) {
+		if (!exiting && minecraft.hitResult instanceof EntityHitResult hit && hit.getEntity() == target) {
 			panelSide = WorldUiTransform.sideOppositeAim(hit.getLocation(), target.position(),
 					camera.getLeftVector(), panelSide);
 		}
 		float worldPixelSize = WorldUiTransform.PIXEL_SCALE * PANEL_SCALE;
-		if (!placement.update(minecraft.level, camera,
+		if (!exiting && !placement.update(minecraft.level, camera,
 				WorldUiTransform.equipmentAnchor(camera, target, partialTick, panelSide),
 				WorldUiTransform.equipmentAnchor(camera, target, partialTick, -panelSide),
 				(PANEL_WIDTH * 0.5F + 2) * worldPixelSize,
 				(PANEL_HEIGHT * 0.5F + 3) * worldPixelSize, panelSide)) {
 			return;
 		}
+		if (exiting && !hasPlacement) return;
+		hasPlacement = true;
 		if (items == null) {
 			items = new WorldItemRenderer();
 		}
@@ -79,11 +86,15 @@ public final class WorldEquipmentRenderer implements AutoCloseable {
 		float red = color[0], green = color[1], blue = color[2], alpha = color[3];
 		pose.pushPose();
 		try {
+			items.alpha(visual.alpha());
 			RenderSystem.setShaderColor(1, 1, 1, 1);
 			RenderSystem.depthMask(true);
-			Vec3 anchor = placement.position();
+			Vec3 anchor = WorldUiTransform.offset(placement.position(), camera.rotation(),
+					ConfigManager.get().horizontal(true), ConfigManager.get().vertical(true)
+							+ visual.offsetPixels() * WorldUiTransform.PIXEL_SCALE * PANEL_SCALE,
+					ConfigManager.get().depth(true));
 			WorldUiTransform.applyAt(pose, camera.getPosition(), camera.rotation(), anchor.x, anchor.y, anchor.z);
-			float scale = PANEL_SCALE * placement.scale();
+			float scale = (float)(PANEL_SCALE * placement.scale() * ConfigManager.get().scale(true) * visual.scale());
 			pose.scale(scale, scale, scale);
 			pose.translate(-PANEL_WIDTH * 0.5F, -PANEL_HEIGHT * 0.5F, 0);
 			drawPanel(pose);
@@ -92,7 +103,7 @@ public final class WorldEquipmentRenderer implements AutoCloseable {
 			}
 			items.flush();
 			for (PanelSlot slot : SLOTS) {
-				ItemStack stack = equipment.stack(slot.equipmentSlot());
+				ItemStack stack = target.getItemBySlot(slot.equipmentSlot());
 				if (stack.isEmpty()) {
 					items.sprite(pose, minecraft.getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(slot.emptySprite()),
 							slot.x() + 1, slot.y() + 1, 0.05F);
@@ -124,6 +135,7 @@ public final class WorldEquipmentRenderer implements AutoCloseable {
 		placementTargetId = Integer.MIN_VALUE;
 		panelSide = 1;
 		placement.reset();
+		hasPlacement = false;
 	}
 
 	private void drawPanel(PoseStack pose) {

@@ -17,6 +17,7 @@ public final class ContainerTargetTracker {
 	@Nullable private ClientLevel world;
 	@Nullable private BlockPos hitPosition;
 	@Nullable private BlockHitResult hitResult;
+	@Nullable private ResolvedContainer target;
 
 	public ContainerTargetTracker(ContainerSnapshotCache cache) {
 		this.cache = cache;
@@ -34,6 +35,7 @@ public final class ContainerTargetTracker {
 		if (!channelAvailable || world == null || minecraft.player == null || !minecraft.player.isAlive()
 				|| minecraft.getCameraEntity() != minecraft.player || minecraft.screen != null || minecraft.options.hideGui) {
 			cache.setTarget(null);
+			target = null;
 			hitPosition = null;
 			hitResult = null;
 			return;
@@ -45,6 +47,7 @@ public final class ContainerTargetTracker {
 				&& eye.distanceToSqr(entityHit.getLocation()) <= eye.distanceToSqr(hit.getLocation()))) {
 			if (retainPreview && hitResult != null) return;
 			cache.setTarget(null);
+			target = null;
 			hitPosition = null;
 			hitResult = null;
 			return;
@@ -54,6 +57,7 @@ public final class ContainerTargetTracker {
 		if (target != null && retainPreview && hitResult != null && hitPosition != null
 				&& !target.members().contains(hitPosition)) return;
 		cache.setTarget(target);
+		this.target = target;
 		hitPosition = null;
 		hitResult = null;
 		if (target != null) {
@@ -72,10 +76,16 @@ public final class ContainerTargetTracker {
 		return hitResult;
 	}
 
+	@Nullable
+	public ResolvedContainer target() {
+		return target;
+	}
+
 	public void clear() {
 		cache.clear();
 		hitPosition = null;
 		hitResult = null;
+		target = null;
 		world = null;
 	}
 }

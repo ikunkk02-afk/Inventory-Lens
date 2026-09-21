@@ -6,6 +6,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 
 /** World transforms shared by billboard panels. Does not install a GUI projection. */
@@ -57,5 +58,12 @@ public final class WorldUiTransform {
 		pose.mulPose(cameraRotation);
 		// Local X is screen-right, Y is down, and positive Z points toward the camera.
 		pose.scale(PIXEL_SCALE, -PIXEL_SCALE, PIXEL_SCALE);
+	}
+
+	/** Screen-right, screen-up, and toward-camera offsets, before panel scaling. */
+	public static Vec3 offset(Vec3 anchor, Quaternionfc cameraRotation, double right, double up, double towardCamera) {
+		Vector3f vector = new Vector3f((float) right, (float) up, (float) towardCamera);
+		cameraRotation.transform(vector);
+		return anchor.add(vector.x, vector.y, vector.z);
 	}
 }
