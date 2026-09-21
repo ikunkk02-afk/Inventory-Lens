@@ -4,7 +4,7 @@ import java.util.function.Predicate;
 
 import com.shouyun.inventorylens.container.ContainerSight;
 import com.shouyun.inventorylens.container.ResolvedContainer;
-import com.shouyun.inventorylens.container.VanillaContainerResolver;
+import com.shouyun.inventorylens.container.ContainerResolverRegistry;
 import com.shouyun.inventorylens.network.ContainerSnapshotRequestPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -30,7 +30,7 @@ public final class ContainerRequestValidator {
 			return null;
 		}
 		// Resolve what the server ray hit, not the untrusted requested position.
-		ResolvedContainer target = VanillaContainerResolver.resolve(dimension, blocks, loaded, hit.getBlockPos());
+		ResolvedContainer target = ContainerResolverRegistry.resolve(dimension, blocks, loaded, hit.getBlockPos());
 		return target != null && target.members().contains(request.position()) ? target : null;
 	}
 }

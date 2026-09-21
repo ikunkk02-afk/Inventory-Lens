@@ -64,11 +64,11 @@ class VanillaContainerResolverTest {
 	}
 
 	@Test
-	void onlyExactVanillaChestAndBarrelAreAccepted() {
+	void outOfScopeBlocksRemainUnsupported() {
 		TestWorld world = new TestWorld();
 		for (var block : new net.minecraft.world.level.block.Block[] {
-				Blocks.TRAPPED_CHEST, Blocks.ENDER_CHEST, Blocks.SHULKER_BOX, Blocks.HOPPER,
-				Blocks.FURNACE, Blocks.DISPENSER, Blocks.DROPPER, Blocks.BREWING_STAND }) {
+				Blocks.CRAFTING_TABLE, Blocks.ANVIL, Blocks.SMITHING_TABLE, Blocks.GRINDSTONE,
+                Blocks.STONECUTTER, Blocks.ENCHANTING_TABLE, Blocks.LECTERN, Blocks.DECORATED_POT }) {
 			world.states.put(BlockPos.ZERO, block.defaultBlockState());
 			assertNull(resolve(world, BlockPos.ZERO));
 		}

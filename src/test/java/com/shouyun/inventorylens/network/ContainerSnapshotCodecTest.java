@@ -10,6 +10,7 @@ import com.shouyun.inventorylens.TestWorld;
 import com.shouyun.inventorylens.container.ContainerIdentity;
 import com.shouyun.inventorylens.container.ContainerSnapshot;
 import com.shouyun.inventorylens.container.ContainerType;
+import com.shouyun.inventorylens.container.ContainerProperties;
 import com.shouyun.inventorylens.container.ResolvedContainer;
 import com.shouyun.inventorylens.network.ContainerSnapshotPayload.Status;
 import io.netty.buffer.Unpooled;
@@ -64,21 +65,25 @@ class ContainerSnapshotCodecTest {
 			sword.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(123));
 			sword.enchant(registries.registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.SHARPNESS), 3);
 			items.set(0, sword);
-			items.set(4, new ItemStack(Items.COBBLESTONE, 64));
-			items.set(8, PotionContents.createItemStack(Items.POTION, Potions.STRONG_HEALING));
+			items.set(1, new ItemStack(Items.COBBLESTONE, 64));
+			items.set(2, PotionContents.createItemStack(Items.POTION, Potions.STRONG_HEALING));
 			ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
 			book.enchant(registries.registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.UNBREAKING), 3);
 			items.set(type.slots() - 1, book);
-			List<BlockPos> members = type == ContainerType.DOUBLE_CHEST
+			List<BlockPos> members = type.memberCount() == 2
 					? List.of(BlockPos.ZERO, BlockPos.ZERO.east()) : List.of(BlockPos.ZERO);
 			ResolvedContainer target = new ResolvedContainer(new ContainerIdentity(Level.OVERWORLD, BlockPos.ZERO), type, members, Direction.NORTH);
-			ContainerSnapshotPayload original = new ContainerSnapshotPayload(123, Status.OK, new ContainerSnapshot(target, items));
+			ContainerSnapshotPayload original = new ContainerSnapshotPayload(123, Status.OK, new ContainerSnapshot(target, items, type.gui(),
+                    Component.literal("钻石仓库"), sample(type)));
 			RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
 			try {
 				ContainerSnapshotPayload.STREAM_CODEC.encode(buffer, original);
 				ContainerSnapshotPayload decoded = ContainerSnapshotPayload.STREAM_CODEC.decode(buffer);
 				assertEquals(123, decoded.requestId());
 				assertEquals(target, decoded.snapshot().container());
+                assertEquals(original.snapshot().title(), decoded.snapshot().title());
+                assertEquals(type.gui(), decoded.snapshot().gui());
+                assertEquals(sample(type), decoded.snapshot().properties());
 				assertEquals(0, buffer.readableBytes());
 				for (int i = 0; i < items.size(); i++) {
 					assertTrue(ItemStack.matches(items.get(i), decoded.snapshot().items().get(i)), "Slot " + i);
@@ -114,7 +119,7 @@ class ContainerSnapshotCodecTest {
 			buffer.writeVarInt(Status.OK.ordinal());
 			buffer.writeResourceLocation(Level.OVERWORLD.location());
 			buffer.writeBlockPos(BlockPos.ZERO);
-			buffer.writeVarInt(ContainerType.CHEST.ordinal());
+			buffer.writeResourceLocation(ContainerType.CHEST.id());
 			buffer.writeVarInt(Direction.NORTH.ordinal());
 			buffer.writeBlockPos(BlockPos.ZERO);
 			buffer.writeVarInt(Integer.MAX_VALUE);
@@ -123,4 +128,35 @@ class ContainerSnapshotCodecTest {
 			buffer.release();
 		}
 	}
+    private static ContainerProperties sample(ContainerType type) {
+        return switch (type.propertiesKind()) {
+            case NONE -> new ContainerProperties.None();
+            case FURNACE -> new ContainerProperties.Furnace(777, 1600, 50, 200);
+            case BREWING -> new ContainerProperties.Brewing(213, 17);
+            case CRAFTER -> new ContainerProperties.Crafter(511, true);
+        };
+    }
+    @Test void malformedPropertiesAndDisabledBitsAreRejected() {
+        for (var type : List.of(ContainerType.CHEST, ContainerType.CRAFTER)) {
+            var target = new ResolvedContainer(new ContainerIdentity(Level.OVERWORLD, BlockPos.ZERO), type, List.of(BlockPos.ZERO), Direction.NORTH);
+            var snapshot = new ContainerSnapshot(target, Collections.nCopies(type.slots(), ItemStack.EMPTY), type.gui(), Component.empty(), sample(type));
+            var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
+            try {
+                ContainerSnapshotPayload.STREAM_CODEC.encode(buffer, new ContainerSnapshotPayload(1, Status.OK, snapshot));
+                if (type == ContainerType.CHEST) buffer.setByte(buffer.writerIndex() - 1, ContainerProperties.Kind.FURNACE.ordinal());
+                else buffer.setByte(buffer.writerIndex() - 2, 4); // 511's FF 03 becomes FF 04: outside nine bits.
+                assertThrows(DecoderException.class, () -> ContainerSnapshotPayload.STREAM_CODEC.decode(buffer));
+            } finally { buffer.release(); }
+        }
+    }
+    @Test void unknownTypeIsRejectedBeforeReadingItems() {
+        var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
+        try {
+            buffer.writeVarLong(1); buffer.writeVarInt(Status.OK.ordinal());
+            buffer.writeResourceLocation(Level.OVERWORLD.location()); buffer.writeBlockPos(BlockPos.ZERO);
+            buffer.writeResourceLocation(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("example", "unknown"));
+            assertThrows(DecoderException.class, () -> ContainerSnapshotPayload.STREAM_CODEC.decode(buffer));
+        } finally { buffer.release(); }
+    }
+
 }

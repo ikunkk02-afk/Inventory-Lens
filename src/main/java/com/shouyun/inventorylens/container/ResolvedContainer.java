@@ -11,8 +11,8 @@ public record ResolvedContainer(ContainerIdentity identity, ContainerType type, 
 		Direction facing) {
 	public ResolvedContainer {
 		members = members.stream().map(BlockPos::immutable).toList();
-		if (members.size() != (type == ContainerType.DOUBLE_CHEST ? 2 : 1)
-				|| !members.contains(identity.position())) {
+		if (members.size() != type.memberCount()
+				|| !members.contains(identity.position()) || members.stream().distinct().count() != members.size()) {
 			throw new IllegalArgumentException("Invalid container members");
 		}
 	}
@@ -24,7 +24,7 @@ public record ResolvedContainer(ContainerIdentity identity, ContainerType type, 
 
 	public Vec3 anchor() {
 		// The chest front is 1/16 inside its block; barrels occupy the full block.
-		double offset = (type == ContainerType.BARREL ? 0.5 : 7.0 / 16.0) + 0.02;
+		double offset = (type.insetBounds() ? 7.0 / 16.0 : 0.5) + 0.02;
 		return center().add(facing.getStepX() * offset, facing.getStepY() * offset,
 				facing.getStepZ() * offset);
 	}

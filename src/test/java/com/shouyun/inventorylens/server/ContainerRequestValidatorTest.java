@@ -64,6 +64,29 @@ class ContainerRequestValidatorTest {
 		assertNull(validateAt(world, chest, new Vec3(0.5, 64.5, 0.0615)));
 	}
 
+    @Test void everyAddedContainerUsesTheSameSightDistanceDimensionAndChunkChecks() {
+        for (var block : java.util.List.of(Blocks.TRAPPED_CHEST, Blocks.SHULKER_BOX, Blocks.ENDER_CHEST,
+                Blocks.HOPPER, Blocks.DISPENSER, Blocks.DROPPER, Blocks.FURNACE, Blocks.BLAST_FURNACE,
+                Blocks.SMOKER, Blocks.BREWING_STAND, Blocks.CRAFTER)) {
+            var world = new TestWorld();
+            var position = new BlockPos(0, 64, 4);
+            world.states.put(position, block.defaultBlockState());
+            assertNotNull(validate(world, position, new Vec3(0, 0, 1)), block.toString());
+            world.states.put(new BlockPos(0, 64, 2), Blocks.STONE.defaultBlockState());
+            assertNull(validate(world, position, new Vec3(0, 0, 1)));
+            world.states.remove(new BlockPos(0, 64, 2));
+            assertNull(validateAt(world, position, new Vec3(0.5, 64.5, -3)));
+            assertNull(ContainerRequestValidator.validate(new ContainerSnapshotRequestPayload(Level.NETHER, position, 1),
+                    Level.OVERWORLD, world, world::loaded, new Vec3(0.5, 64.5, 0), new Vec3(0,0,1), CollisionContext.empty()));
+            int shapeLookups = world.inventoryLookups; // Vanilla shulker shape may consult its block entity.
+            world.unloaded.add(position);
+            world.reads.clear();
+            assertNull(validate(world, position, new Vec3(0,0,1)));
+            assertTrue(world.reads.isEmpty());
+            assertEquals(shapeLookups, world.inventoryLookups);
+        }
+    }
+
 	private ResolvedContainer validate(TestWorld world, BlockPos pos, Vec3 direction) {
 		return ContainerRequestValidator.validate(new ContainerSnapshotRequestPayload(Level.OVERWORLD, pos, 1),
 				Level.OVERWORLD, world, world::loaded, new Vec3(0.5, 64.5, 0), direction, CollisionContext.empty());

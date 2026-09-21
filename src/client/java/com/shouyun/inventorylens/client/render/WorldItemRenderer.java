@@ -152,6 +152,25 @@ public final class WorldItemRenderer implements AutoCloseable {
 				.setUv(u1, v0).setLight(LightTexture.FULL_BRIGHT);
 	}
 
+    public void guiSprite(Minecraft minecraft, PoseStack pose,
+            com.shouyun.inventorylens.client.gui.ContainerGuiDefinition.SpriteElement e, float z) {
+        if (e.width() <= 0 || e.height() <= 0) return;
+        TextureAtlasSprite sprite = minecraft.getGuiSprites().getSprite(e.sprite());
+        for (var q : com.shouyun.inventorylens.client.gui.GuiSpriteLayout.quads(e, minecraft.getGuiSprites().getSpriteScaling(sprite))) {
+            spriteRegion(pose, sprite, q.x(), q.y(), q.width(), q.height(), q.u0(), q.v0(), q.u1(), q.v1(), z);
+        }
+    }
+    private void spriteRegion(PoseStack pose, TextureAtlasSprite sprite, int x, int y, int width, int height,
+            float u0, float v0, float u1, float v1, float z) {
+        Matrix4f matrix = pose.last().pose();
+        VertexConsumer vertices = buffers.getBuffer(RenderType.text(sprite.atlasLocation()));
+        float left = sprite.getU(u0), right = sprite.getU(u1), top = sprite.getV(v0), bottom = sprite.getV(v1);
+        vertices.addVertex(matrix, x, y, z).setColor(-1).setUv(left, top).setLight(LightTexture.FULL_BRIGHT);
+        vertices.addVertex(matrix, x, y + height, z).setColor(-1).setUv(left, bottom).setLight(LightTexture.FULL_BRIGHT);
+        vertices.addVertex(matrix, x + width, y + height, z).setColor(-1).setUv(right, bottom).setLight(LightTexture.FULL_BRIGHT);
+        vertices.addVertex(matrix, x + width, y, z).setColor(-1).setUv(right, top).setLight(LightTexture.FULL_BRIGHT);
+    }
+
 	public void label(Minecraft minecraft, PoseStack pose, Component text, int x, int y, int color) {
 		pose.pushPose();
 		try {

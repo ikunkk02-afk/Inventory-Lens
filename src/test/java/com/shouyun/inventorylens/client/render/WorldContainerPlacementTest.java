@@ -261,11 +261,13 @@ class WorldContainerPlacementTest {
 
 	private static ResolvedContainer target(ContainerType type) {
 		return new ResolvedContainer(new ContainerIdentity(Level.OVERWORLD, BlockPos.ZERO), type,
-				type == ContainerType.DOUBLE_CHEST ? List.of(BlockPos.ZERO, BlockPos.ZERO.east()) : List.of(BlockPos.ZERO), Direction.NORTH);
+				type.memberCount() == 2 ? List.of(BlockPos.ZERO, BlockPos.ZERO.east()) : List.of(BlockPos.ZERO), Direction.NORTH);
 	}
 
 	private static float height(ResolvedContainer target) {
-		return (24 + 18 * target.type().rows()) * 0.005F;
+		return com.shouyun.inventorylens.client.gui.ContainerGuiAdapterRegistry.definition(
+                new com.shouyun.inventorylens.container.ContainerSnapshot(target,
+                    java.util.Collections.nCopies(target.type().slots(), net.minecraft.world.item.ItemStack.EMPTY))).height() * 0.005F;
 	}
 
 	private static Vec3 normal(Direction face) {

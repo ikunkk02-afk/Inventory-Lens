@@ -102,6 +102,29 @@ class ContainerSnapshotCacheTest {
 		assertNull(cache.snapshot(1500));
 	}
 
+    @Test void productionStateAndItemsUpdateTogetherAndOldSessionCannotRestoreEnderItems() {
+        var cache = new ContainerSnapshotCache();
+        var target = new ResolvedContainer(new ContainerIdentity(Level.OVERWORLD, BlockPos.ZERO), ContainerType.FURNACE, List.of(BlockPos.ZERO), Direction.NORTH);
+        cache.setTarget(target);
+        var first = cache.request(BlockPos.ZERO, 0);
+        var second = cache.request(BlockPos.ZERO, 300);
+        var state = new com.shouyun.inventorylens.container.ContainerProperties.Furnace(100, 200, 50, 200);
+        var snapshot = new ContainerSnapshot(target, List.of(new ItemStack(Items.RAW_IRON, 3), new ItemStack(Items.COAL), ItemStack.EMPTY),
+                target.type().gui(), net.minecraft.network.chat.Component.translatable("container.furnace"), state);
+        cache.receive(new ContainerSnapshotPayload(second.requestId(), Status.OK, snapshot), 310);
+        cache.receive(new ContainerSnapshotPayload(first.requestId(), Status.OK, new ContainerSnapshot(target, Collections.nCopies(3, ItemStack.EMPTY))), 320);
+        assertEquals(state, cache.snapshot(320).properties());
+        assertEquals(3, cache.snapshot(320).items().getFirst().getCount());
+        assertNull(cache.snapshot(1810));
+        var ender = new ResolvedContainer(target.identity(), ContainerType.ENDER_CHEST, List.of(BlockPos.ZERO), Direction.NORTH);
+        cache.setTarget(ender);
+        var old = cache.request(BlockPos.ZERO, 2000);
+        cache.clear();
+        cache.setTarget(ender);
+        cache.receive(response(old.requestId(), ender, 64), 2010);
+        assertNull(cache.snapshot(2010));
+    }
+
 	private ResolvedContainer doubleChest() {
 		return new ResolvedContainer(new ContainerIdentity(Level.OVERWORLD, BlockPos.ZERO), ContainerType.DOUBLE_CHEST,
 				List.of(BlockPos.ZERO, BlockPos.ZERO.east()), Direction.NORTH);

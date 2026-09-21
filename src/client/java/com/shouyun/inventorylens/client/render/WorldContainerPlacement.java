@@ -1,6 +1,5 @@
 package com.shouyun.inventorylens.client.render;
 
-import com.shouyun.inventorylens.container.ContainerType;
 import com.shouyun.inventorylens.container.ResolvedContainer;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
@@ -127,7 +126,7 @@ public final class WorldContainerPlacement {
 		if (container.members().size() == 2) {
 			box = box.minmax(new AABB(container.members().get(1)));
 		}
-		if (container.type() == ContainerType.BARREL) {
+		if (!container.type().insetBounds()) {
 			return box;
 		}
 		return new AABB(box.minX + 1.0 / 16, box.minY, box.minZ + 1.0 / 16,

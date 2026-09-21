@@ -2,7 +2,7 @@ package com.shouyun.inventorylens.client.container;
 
 import com.shouyun.inventorylens.container.ContainerSight;
 import com.shouyun.inventorylens.container.ResolvedContainer;
-import com.shouyun.inventorylens.container.VanillaContainerResolver;
+import com.shouyun.inventorylens.container.ContainerResolverRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -42,7 +42,7 @@ public final class ContainerTargetTracker {
 			cache.setTarget(null);
 			return;
 		}
-		ResolvedContainer target = VanillaContainerResolver.resolve(world, hit.getBlockPos());
+		ResolvedContainer target = ContainerResolverRegistry.resolve(world, hit.getBlockPos());
 		cache.setTarget(target);
 		if (target != null) {
 			hitPosition = hit.getBlockPos().immutable();

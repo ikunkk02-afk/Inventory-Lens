@@ -11,7 +11,7 @@ import net.minecraft.world.level.Level;
 
 public record ContainerSnapshotRequestPayload(ResourceKey<Level> dimension, BlockPos position, long requestId)
 		implements CustomPacketPayload {
-	public static final Type<ContainerSnapshotRequestPayload> TYPE = new Type<>(InventoryLens.id("container_request_v1"));
+	public static final Type<ContainerSnapshotRequestPayload> TYPE = new Type<>(InventoryLens.id("container_request_v2"));
 	public static final StreamCodec<RegistryFriendlyByteBuf, ContainerSnapshotRequestPayload> STREAM_CODEC =
 			new StreamCodec<>() {
 				@Override
