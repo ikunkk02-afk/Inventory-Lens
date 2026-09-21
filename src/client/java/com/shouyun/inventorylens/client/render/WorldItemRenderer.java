@@ -19,9 +19,13 @@ import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
 /** Native item icons on an existing world-space pixel plane, including vanilla decorations. */
@@ -57,8 +61,14 @@ public final class WorldItemRenderer implements AutoCloseable {
 
 	public void render(Minecraft minecraft, PoseStack pose, ItemStack stack, LivingEntity owner,
 			int x, int y, int seed) {
+		render(minecraft, pose, stack, owner.level(), owner, x, y, seed);
+	}
+
+	/** Containers have a world but no owning entity; preserve the equipment overload unchanged. */
+	public void render(Minecraft minecraft, PoseStack pose, ItemStack stack, Level level, @Nullable LivingEntity owner,
+			int x, int y, int seed) {
 		ItemRenderer renderer = minecraft.getItemRenderer();
-		BakedModel model = renderer.getModel(stack, owner.level(), owner, seed);
+		BakedModel model = renderer.getModel(stack, level, owner, seed);
 		if (model.usesBlockLight()) {
 			Lighting.setupFor3DItems();
 		} else {
@@ -121,6 +131,37 @@ public final class WorldItemRenderer implements AutoCloseable {
 				.setUv(sprite.getU1(), sprite.getV1()).setLight(LightTexture.FULL_BRIGHT);
 		vertices.addVertex(matrix, x + 16, y, z).setColor(0xFFFFFFFF)
 				.setUv(sprite.getU1(), sprite.getV0()).setLight(LightTexture.FULL_BRIGHT);
+	}
+
+	/** Native GUI texture regions on the existing world plane; NORMAL text layers retain depth. */
+	public void blit(PoseStack pose, ResourceLocation texture, int x, int y, int width, int height,
+			int u, int v, int textureWidth, int textureHeight, float z) {
+		Matrix4f matrix = pose.last().pose();
+		VertexConsumer vertices = buffers.getBuffer(RenderType.text(texture));
+		float u0 = (float) u / textureWidth;
+		float v0 = (float) v / textureHeight;
+		float u1 = (float) (u + width) / textureWidth;
+		float v1 = (float) (v + height) / textureHeight;
+		vertices.addVertex(matrix, x, y, z).setColor(0xFFFFFFFF)
+				.setUv(u0, v0).setLight(LightTexture.FULL_BRIGHT);
+		vertices.addVertex(matrix, x, y + height, z).setColor(0xFFFFFFFF)
+				.setUv(u0, v1).setLight(LightTexture.FULL_BRIGHT);
+		vertices.addVertex(matrix, x + width, y + height, z).setColor(0xFFFFFFFF)
+				.setUv(u1, v1).setLight(LightTexture.FULL_BRIGHT);
+		vertices.addVertex(matrix, x + width, y, z).setColor(0xFFFFFFFF)
+				.setUv(u1, v0).setLight(LightTexture.FULL_BRIGHT);
+	}
+
+	public void label(Minecraft minecraft, PoseStack pose, Component text, int x, int y, int color) {
+		pose.pushPose();
+		try {
+			pose.translate(0, 0, 0.05F);
+			minecraft.font.drawInBatch(text, x, y, color, false, pose.last().pose(), buffers,
+					Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
+			flush();
+		} finally {
+			pose.popPose();
+		}
 	}
 
 	public void flush() {

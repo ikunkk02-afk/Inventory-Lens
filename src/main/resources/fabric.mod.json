@@ -3,7 +3,7 @@
 	"id": "inventorylens",
 	"version": "${version}",
 	"name": "Inventory Lens",
-	"description": "Displays a world-space equipment panel beside the creature you are looking at.",
+	"description": "World-space creature equipment panels and read-only chest, double chest, and barrel inventory projections.",
 	"authors": [
 		"寿云"
 	],

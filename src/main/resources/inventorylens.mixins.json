@@ -3,7 +3,8 @@
 	"package": "com.shouyun.inventorylens.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+		"ExampleMixin",
+		"ContainerLockAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
